@@ -139,5 +139,14 @@ jobs:
   - Timestamp of the main message sent to Slack
 
 - `replyMessageTs`
-  - Timestamp of the reply message sent to Slack 
+  - Timestamp of the reply message sent to Slack
+
+## Manual testing (mainChannel)
+
+To verify the `mainChannel` option:
+
+1. Run the action twice in a channel (e.g. via `workflow_dispatch`), once with `mainChannel: false` (or omitted) and once with `mainChannel: true`.
+2. **With `mainChannel: false` (default):** The approval message (approvers + Approve/Reject buttons) appears as a **thread reply** under the first message. You must open the thread to see the buttons.
+3. **With `mainChannel: true`:** The approval message appears as a **second top-level message** in the channel; both messages are visible in the main feed without opening a thread.
+4. Confirm Approve/Reject and cancel (timeout) still update the correct message in both runs.
 

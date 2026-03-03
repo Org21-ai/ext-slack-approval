@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const core = __importStar(require("@actions/core"));
 const bolt_1 = require("@slack/bolt");
 const web_api_1 = require("@slack/web-api");
+const buildReplyPayload_1 = require("./buildReplyPayload");
 const token = process.env.SLACK_BOT_TOKEN || "";
 const signingSecret = process.env.SLACK_SIGNING_SECRET || "";
 const slackAppToken = process.env.SLACK_APP_TOKEN || "";
@@ -187,14 +188,12 @@ function run() {
             const mainMessage = baseMessageTs
                 ? yield web.chat.update(Object.assign({ channel: channel_id, ts: baseMessageTs }, mainMessagePayload))
                 : yield web.chat.postMessage(Object.assign({ channel: channel_id }, mainMessagePayload));
-            const replyMessagePayload = {
-                channel: channel_id,
-                text: "",
+            const replyMessagePayload = (0, buildReplyPayload_1.buildReplyMessagePayload)({
+                mainChannel,
+                channelId: channel_id,
+                mainMessageTs: mainMessage.ts,
                 blocks: [renderReplyTitle(), renderReplyBody()],
-            };
-            if (!mainChannel) {
-                replyMessagePayload.thread_ts = mainMessage.ts;
-            }
+            });
             const replyMessage = yield web.chat.postMessage(replyMessagePayload);
             core.setOutput("mainMessageTs", mainMessage.ts);
             core.setOutput("replyMessageTs", replyMessage.ts);

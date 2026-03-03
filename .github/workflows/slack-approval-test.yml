@@ -10,6 +10,12 @@ on:
       - synchronize
       - reopened
   workflow_dispatch:
+    inputs:
+      mainChannel:
+        description: "Post approval in main channel (true) or thread (false)"
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   approval:
@@ -32,6 +38,7 @@ jobs:
           SLACK_SIGNING_SECRET: ${{ secrets.SLACK_SIGNING_SECRET }}
           SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
         with:
+          mainChannel: ${{ github.event.inputs.mainChannel }}
           approvers: U07U2EYRBGD,user2
           minimumApprovalCount: 1
           baseMessagePayload: |
