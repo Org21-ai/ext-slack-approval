@@ -22,6 +22,7 @@ const successMessagePayload = JSON.parse(
 const failMessagePayload = JSON.parse(
   core.getMultilineInput("failMessagePayload").join("")
 );
+const mainChannel = core.getInput("mainChannel").toLowerCase() === "true";
 
 const app = new App({
   token: token,
@@ -180,12 +181,20 @@ async function run(): Promise<void> {
           ...mainMessagePayload,
         });
 
-    const replyMessage = await web.chat.postMessage({
+    const replyMessagePayload: {
+      channel: string;
+      thread_ts?: string;
+      text: string;
+      blocks: unknown[];
+    } = {
       channel: channel_id,
-      thread_ts: mainMessage.ts,
       text: "",
       blocks: [renderReplyTitle(), renderReplyBody()],
-    });
+    };
+    if (!mainChannel) {
+      replyMessagePayload.thread_ts = mainMessage.ts;
+    }
+    const replyMessage = await web.chat.postMessage(replyMessagePayload);
 
     core.setOutput("mainMessageTs", mainMessage.ts);
     core.setOutput("replyMessageTs", replyMessage.ts);

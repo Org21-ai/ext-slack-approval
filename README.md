@@ -65,16 +65,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: send approval
-        uses: TigerWest/slack-approval@v1.0.1
+        uses: Org21-ai/ext-slack-approval@main
         env:
           SLACK_APP_TOKEN: ${{ secrets.SLACK_APP_TOKEN }}
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_SIGNING_SECRET: ${{ secrets.SLACK_SIGNING_SECRET }}
           SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
-        timeout-minutes: 10
+        timeout-minutes: 120
         with:
             approvers: user1,user2
             minimumApprovalCount: 2
+            mainChannel: true
             baseMessagePayload: |
               {}
             successMessagePayload: |
@@ -126,6 +127,10 @@ jobs:
   - `failMessagePayload`
     - The message body indicating approval is fail. If not set, will use baseMessagePayload.
     - Optional (default: "{}")
+
+  - `mainChannel`
+    - If `true`, the approval message (with Approve/Reject buttons) is posted in the channel main timeline as a separate top-level message. If `false`, it is posted as a thread reply under the main message.
+    - Optional (default: "false")
 
 
 ## outputs

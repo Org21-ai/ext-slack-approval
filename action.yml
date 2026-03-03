@@ -34,6 +34,10 @@ inputs:
     required: false
     default: |
       {}
+  mainChannel:
+    description: "If true, post the approval message in the channel main timeline (no thread). If false, post it as a thread reply under the main message."
+    required: false
+    default: "false"
 
 outputs:
   mainMessageTs:

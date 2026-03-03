@@ -48,6 +48,7 @@ const baseMessagePayload = JSON.parse(core.getMultilineInput("baseMessagePayload
 const approvers = [];
 const successMessagePayload = JSON.parse(core.getMultilineInput("successMessagePayload").join(""));
 const failMessagePayload = JSON.parse(core.getMultilineInput("failMessagePayload").join(""));
+const mainChannel = core.getInput("mainChannel").toLowerCase() === "true";
 const app = new bolt_1.App({
     token: token,
     signingSecret: signingSecret,
@@ -186,12 +187,15 @@ function run() {
             const mainMessage = baseMessageTs
                 ? yield web.chat.update(Object.assign({ channel: channel_id, ts: baseMessageTs }, mainMessagePayload))
                 : yield web.chat.postMessage(Object.assign({ channel: channel_id }, mainMessagePayload));
-            const replyMessage = yield web.chat.postMessage({
+            const replyMessagePayload = {
                 channel: channel_id,
-                thread_ts: mainMessage.ts,
                 text: "",
                 blocks: [renderReplyTitle(), renderReplyBody()],
-            });
+            };
+            if (!mainChannel) {
+                replyMessagePayload.thread_ts = mainMessage.ts;
+            }
+            const replyMessage = yield web.chat.postMessage(replyMessagePayload);
             core.setOutput("mainMessageTs", mainMessage.ts);
             core.setOutput("replyMessageTs", replyMessage.ts);
             function cancelHandler() {
