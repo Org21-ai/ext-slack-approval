@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "ncc build src/index.ts -o dist",
     "watch": "tsc -w"
   },
   "author": "",
@@ -17,6 +17,7 @@
   },
   "devDependencies": {
     "@types/node": "^18.8.4",
+    "@vercel/ncc": "^0.38.0",
     "typescript": "^4.8.4"
   }
 }
