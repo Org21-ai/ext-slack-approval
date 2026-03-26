@@ -132,6 +132,10 @@ jobs:
     - If `true`, the approval message (with Approve/Reject buttons) is posted in the channel main timeline as a separate top-level message. If `false`, it is posted as a thread reply under the main message.
     - Optional (default: "false")
 
+The default Slack message automatically includes commit context when available:
+- `Commit` from `GITHUB_SHA`
+- `Commit message` from the GitHub event payload (`push` uses `head_commit.message`; `pull_request` falls back to PR title/body)
+
 
 ## outputs
 

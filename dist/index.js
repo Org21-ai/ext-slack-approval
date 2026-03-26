@@ -57358,6 +57358,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(7484));
 const bolt_1 = __nccwpck_require__(2043);
 const web_api_1 = __nccwpck_require__(5105);
+const fs = __importStar(__nccwpck_require__(9896));
 const token = process.env.SLACK_BOT_TOKEN || "";
 const signingSecret = process.env.SLACK_SIGNING_SECRET || "";
 const slackAppToken = process.env.SLACK_APP_TOKEN || "";
@@ -57387,6 +57388,49 @@ function hasPayload(inputs) {
     var _a, _b;
     return ((_a = inputs.text) === null || _a === void 0 ? void 0 : _a.length) > 0 || ((_b = inputs.blocks) === null || _b === void 0 ? void 0 : _b.length) > 0;
 }
+function ellipsize(text, max = 300) {
+    if (text.length <= max) {
+        return text;
+    }
+    return `${text.slice(0, max - 3)}...`;
+}
+function extractCommitContext() {
+    var _a, _b;
+    const sha = process.env.GITHUB_SHA || "";
+    const shortSha = sha ? sha.slice(0, 7) : "";
+    const eventPath = process.env.GITHUB_EVENT_PATH || "";
+    const fallback = {
+        shortSha,
+        message: "",
+    };
+    if (!eventPath) {
+        return fallback;
+    }
+    try {
+        const raw = fs.readFileSync(eventPath, "utf8");
+        const event = JSON.parse(raw);
+        if (typeof ((_a = event.head_commit) === null || _a === void 0 ? void 0 : _a.message) === "string") {
+            return {
+                shortSha,
+                message: event.head_commit.message,
+            };
+        }
+        if (typeof ((_b = event.pull_request) === null || _b === void 0 ? void 0 : _b.title) === "string") {
+            const prTitle = event.pull_request.title;
+            const prBody = typeof event.pull_request.body === "string"
+                ? event.pull_request.body
+                : "";
+            return {
+                shortSha,
+                message: prBody ? `${prTitle} - ${prBody}` : prTitle,
+            };
+        }
+    }
+    catch (_error) {
+        return fallback;
+    }
+    return fallback;
+}
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -57401,6 +57445,10 @@ function run() {
             const runnerOS = process.env.RUNNER_OS || "";
             const actor = process.env.GITHUB_ACTOR || "";
             const actionsUrl = `${github_server_url}/${github_repos}/actions/runs/${run_id}`;
+            const { shortSha, message } = extractCommitContext();
+            const commitMessage = message
+                ? ellipsize(message.replace(/\s+/g, " ").trim())
+                : "";
             const mainMessagePayload = hasPayload(baseMessagePayload)
                 ? baseMessagePayload
                 : {
@@ -57439,6 +57487,22 @@ function run() {
                                     type: "mrkdwn",
                                     text: `*RunnerOS:*\n${runnerOS}`,
                                 },
+                                ...(shortSha
+                                    ? [
+                                        {
+                                            type: "mrkdwn",
+                                            text: `*Commit:*\n${shortSha}`,
+                                        },
+                                    ]
+                                    : []),
+                                ...(commitMessage
+                                    ? [
+                                        {
+                                            type: "mrkdwn",
+                                            text: `*Commit message:*\n${commitMessage}`,
+                                        },
+                                    ]
+                                    : []),
                             ],
                         },
                     ],

@@ -1,6 +1,7 @@
 import * as core from "@actions/core";
 import { App, BlockAction, LogLevel } from "@slack/bolt";
 import { WebClient } from "@slack/web-api";
+import * as fs from "fs";
 
 const token = process.env.SLACK_BOT_TOKEN || "";
 const signingSecret = process.env.SLACK_SIGNING_SECRET || "";
@@ -43,6 +44,51 @@ function hasPayload(inputs: any) {
   return inputs.text?.length > 0 || inputs.blocks?.length > 0;
 }
 
+function ellipsize(text: string, max = 300) {
+  if (text.length <= max) {
+    return text;
+  }
+  return `${text.slice(0, max - 3)}...`;
+}
+
+function extractCommitContext() {
+  const sha = process.env.GITHUB_SHA || "";
+  const shortSha = sha ? sha.slice(0, 7) : "";
+  const eventPath = process.env.GITHUB_EVENT_PATH || "";
+  const fallback = {
+    shortSha,
+    message: "",
+  };
+  if (!eventPath) {
+    return fallback;
+  }
+
+  try {
+    const raw = fs.readFileSync(eventPath, "utf8");
+    const event = JSON.parse(raw);
+    if (typeof event.head_commit?.message === "string") {
+      return {
+        shortSha,
+        message: event.head_commit.message,
+      };
+    }
+    if (typeof event.pull_request?.title === "string") {
+      const prTitle = event.pull_request.title;
+      const prBody =
+        typeof event.pull_request.body === "string"
+          ? event.pull_request.body
+          : "";
+      return {
+        shortSha,
+        message: prBody ? `${prTitle} - ${prBody}` : prTitle,
+      };
+    }
+  } catch (_error) {
+    return fallback;
+  }
+  return fallback;
+}
+
 async function run(): Promise<void> {
   try {
     const web = new WebClient(token);
@@ -57,6 +103,10 @@ async function run(): Promise<void> {
     const runnerOS = process.env.RUNNER_OS || "";
     const actor = process.env.GITHUB_ACTOR || "";
     const actionsUrl = `${github_server_url}/${github_repos}/actions/runs/${run_id}`;
+    const { shortSha, message } = extractCommitContext();
+    const commitMessage = message
+      ? ellipsize(message.replace(/\s+/g, " ").trim())
+      : "";
     const mainMessagePayload = hasPayload(baseMessagePayload)
       ? baseMessagePayload
       : {
@@ -95,6 +145,22 @@ async function run(): Promise<void> {
                   type: "mrkdwn",
                   text: `*RunnerOS:*\n${runnerOS}`,
                 },
+                ...(shortSha
+                  ? [
+                      {
+                        type: "mrkdwn",
+                        text: `*Commit:*\n${shortSha}`,
+                      },
+                    ]
+                  : []),
+                ...(commitMessage
+                  ? [
+                      {
+                        type: "mrkdwn",
+                        text: `*Commit message:*\n${commitMessage}`,
+                      },
+                    ]
+                  : []),
               ],
             },
           ],
