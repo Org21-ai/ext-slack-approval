@@ -38,6 +38,10 @@ inputs:
     description: "If true, post the approval message in the channel main timeline (no thread). If false, post it as a thread reply under the main message."
     required: false
     default: "false"
+  includeCommitContext:
+    description: "If true, append Commit and Commit message (from GitHub event) to baseMessagePayload blocks or text. Set false to disable for custom payloads that already include this."
+    required: false
+    default: "true"
 
 outputs:
   mainMessageTs:

@@ -57372,6 +57372,7 @@ const approvers = [];
 const successMessagePayload = JSON.parse(core.getMultilineInput("successMessagePayload").join(""));
 const failMessagePayload = JSON.parse(core.getMultilineInput("failMessagePayload").join(""));
 const mainChannel = core.getInput("mainChannel").toLowerCase() === "true";
+const includeCommitContext = core.getInput("includeCommitContext").toLowerCase() !== "false";
 const app = new bolt_1.App({
     token: token,
     signingSecret: signingSecret,
@@ -57431,6 +57432,47 @@ function extractCommitContext() {
     }
     return fallback;
 }
+function mergeCommitContextIntoPayload(payload, ctx, enabled) {
+    if (!enabled) {
+        return Object.assign({}, payload);
+    }
+    if (!ctx.shortSha && !ctx.commitMessage) {
+        return Object.assign({}, payload);
+    }
+    const out = Object.assign({}, payload);
+    if (Array.isArray(out.blocks)) {
+        const fields = [];
+        if (ctx.shortSha) {
+            fields.push({
+                type: "mrkdwn",
+                text: `*Commit:*\n${ctx.shortSha}`,
+            });
+        }
+        if (ctx.commitMessage) {
+            fields.push({
+                type: "mrkdwn",
+                text: `*Commit message:*\n${ctx.commitMessage}`,
+            });
+        }
+        if (fields.length === 0) {
+            return out;
+        }
+        out.blocks = [...out.blocks, { type: "section", fields }];
+        return out;
+    }
+    if (typeof out.text === "string") {
+        let t = out.text;
+        if (ctx.shortSha) {
+            t += `\n*Commit:* ${ctx.shortSha}`;
+        }
+        if (ctx.commitMessage) {
+            t += `\n*Commit message:* ${ctx.commitMessage}`;
+        }
+        out.text = t;
+        return out;
+    }
+    return out;
+}
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -57449,7 +57491,7 @@ function run() {
             const commitMessage = message
                 ? ellipsize(message.replace(/\s+/g, " ").trim())
                 : "";
-            const mainMessagePayload = hasPayload(baseMessagePayload)
+            const baseMainPayload = hasPayload(baseMessagePayload)
                 ? baseMessagePayload
                 : {
                     blocks: [
@@ -57487,26 +57529,11 @@ function run() {
                                     type: "mrkdwn",
                                     text: `*RunnerOS:*\n${runnerOS}`,
                                 },
-                                ...(shortSha
-                                    ? [
-                                        {
-                                            type: "mrkdwn",
-                                            text: `*Commit:*\n${shortSha}`,
-                                        },
-                                    ]
-                                    : []),
-                                ...(commitMessage
-                                    ? [
-                                        {
-                                            type: "mrkdwn",
-                                            text: `*Commit message:*\n${commitMessage}`,
-                                        },
-                                    ]
-                                    : []),
                             ],
                         },
                     ],
                 };
+            const mainMessagePayload = mergeCommitContextIntoPayload(baseMainPayload, { shortSha, commitMessage }, includeCommitContext);
             const renderReplyTitle = () => {
                 return {
                     type: "section",
@@ -57570,9 +57597,10 @@ function run() {
                 }
                 return "approved";
             }
+            const slackMainArgs = Object.assign({ channel: channel_id }, mainMessagePayload);
             const mainMessage = baseMessageTs
                 ? yield web.chat.update(Object.assign({ channel: channel_id, ts: baseMessageTs }, mainMessagePayload))
-                : yield web.chat.postMessage(Object.assign({ channel: channel_id }, mainMessagePayload));
+                : yield web.chat.postMessage(slackMainArgs);
             const replyMessagePayload = {
                 channel: channel_id,
                 text: "",

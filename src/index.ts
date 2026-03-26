@@ -24,6 +24,8 @@ const failMessagePayload = JSON.parse(
   core.getMultilineInput("failMessagePayload").join("")
 );
 const mainChannel = core.getInput("mainChannel").toLowerCase() === "true";
+const includeCommitContext =
+  core.getInput("includeCommitContext").toLowerCase() !== "false";
 
 const app = new App({
   token: token,
@@ -89,6 +91,56 @@ function extractCommitContext() {
   return fallback;
 }
 
+function mergeCommitContextIntoPayload(
+  payload: Record<string, unknown>,
+  ctx: { shortSha: string; commitMessage: string },
+  enabled: boolean
+): Record<string, unknown> {
+  if (!enabled) {
+    return { ...payload };
+  }
+  if (!ctx.shortSha && !ctx.commitMessage) {
+    return { ...payload };
+  }
+
+  const out: Record<string, unknown> = { ...payload };
+
+  if (Array.isArray(out.blocks)) {
+    const fields: { type: string; text: string }[] = [];
+    if (ctx.shortSha) {
+      fields.push({
+        type: "mrkdwn",
+        text: `*Commit:*\n${ctx.shortSha}`,
+      });
+    }
+    if (ctx.commitMessage) {
+      fields.push({
+        type: "mrkdwn",
+        text: `*Commit message:*\n${ctx.commitMessage}`,
+      });
+    }
+    if (fields.length === 0) {
+      return out;
+    }
+    out.blocks = [...(out.blocks as unknown[]), { type: "section", fields }];
+    return out;
+  }
+
+  if (typeof out.text === "string") {
+    let t = out.text;
+    if (ctx.shortSha) {
+      t += `\n*Commit:* ${ctx.shortSha}`;
+    }
+    if (ctx.commitMessage) {
+      t += `\n*Commit message:* ${ctx.commitMessage}`;
+    }
+    out.text = t;
+    return out;
+  }
+
+  return out;
+}
+
 async function run(): Promise<void> {
   try {
     const web = new WebClient(token);
@@ -107,8 +159,10 @@ async function run(): Promise<void> {
     const commitMessage = message
       ? ellipsize(message.replace(/\s+/g, " ").trim())
       : "";
-    const mainMessagePayload = hasPayload(baseMessagePayload)
-      ? baseMessagePayload
+    const baseMainPayload: Record<string, unknown> = hasPayload(
+      baseMessagePayload
+    )
+      ? (baseMessagePayload as Record<string, unknown>)
       : {
           blocks: [
             {
@@ -145,26 +199,15 @@ async function run(): Promise<void> {
                   type: "mrkdwn",
                   text: `*RunnerOS:*\n${runnerOS}`,
                 },
-                ...(shortSha
-                  ? [
-                      {
-                        type: "mrkdwn",
-                        text: `*Commit:*\n${shortSha}`,
-                      },
-                    ]
-                  : []),
-                ...(commitMessage
-                  ? [
-                      {
-                        type: "mrkdwn",
-                        text: `*Commit message:*\n${commitMessage}`,
-                      },
-                    ]
-                  : []),
               ],
             },
           ],
         };
+    const mainMessagePayload = mergeCommitContextIntoPayload(
+      baseMainPayload,
+      { shortSha, commitMessage },
+      includeCommitContext
+    );
 
     const renderReplyTitle = () => {
       return {
@@ -236,16 +279,18 @@ async function run(): Promise<void> {
       return "approved";
     }
 
+    const slackMainArgs = {
+      channel: channel_id,
+      ...mainMessagePayload,
+    } as Parameters<typeof web.chat.postMessage>[0];
+
     const mainMessage = baseMessageTs
       ? await web.chat.update({
           channel: channel_id,
           ts: baseMessageTs,
           ...mainMessagePayload,
-        })
-      : await web.chat.postMessage({
-          channel: channel_id,
-          ...mainMessagePayload,
-        });
+        } as Parameters<typeof web.chat.update>[0])
+      : await web.chat.postMessage(slackMainArgs);
 
     const replyMessagePayload: {
       channel: string;
