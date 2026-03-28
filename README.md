@@ -149,6 +149,37 @@ When `includeCommitContext` is enabled, commit context is merged in when availab
 - `replyMessageTs`
   - Timestamp of the reply message sent to Slack
 
+- `commitShortSha`
+  - Short SHA (7 characters) from `GITHUB_SHA`; matches the `*Commit*` field when `includeCommitContext` is enabled
+
+- `commitContextMessage`
+  - Truncated commit or PR summary; matches the `*Commit message*` field when `includeCommitContext` is enabled. These values are computed with the same logic as the Slack message, but like all step outputs they are only available to **later** steps after the approval step finishes (the step blocks until approve/reject/timeout). For an earlier CI notice, use `extract-commit-context` below.
+
+## Aligning a CI Slack notice with the production approval message
+
+If you post a **separate** Slack message when CI completes (before the approval step), use the companion composite action so the notice uses the **same** commit/PR text as the approval card:
+
+```yaml
+- uses: Org21-ai/ext-slack-approval/extract-commit-context@main
+  id: ctx
+
+- name: Post CI notice to Slack
+  uses: slackapi/slack-github-action@v1
+  with:
+    payload: |
+      {
+        "text": "CI finished for `${{ steps.ctx.outputs.commitShortSha }}`: ${{ steps.ctx.outputs.commitContextMessage }}"
+      }
+  env:
+    SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+- uses: Org21-ai/ext-slack-approval@main
+  id: approval
+  # ... same workflow run; approval message will show matching Commit / Commit message when includeCommitContext is true
+```
+
+The script in `extract-commit-context` follows the same rules as `src/index.ts` (`head_commit.message`, then PR title/body, 300-character truncation). If you change one, update the other and keep them in sync.
+
 ## Manual testing (mainChannel)
 
 To verify the `mainChannel` option:

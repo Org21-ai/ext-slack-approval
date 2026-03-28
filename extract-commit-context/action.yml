@@ -1,0 +1,18 @@
+name: Extract commit context (slack-approval compatible)
+description: >-
+  Emits commitShortSha and commitContextMessage from the GitHub event using the
+  same rules as the slack-approval action. Run this step before your CI Slack
+  notice so it matches the production approval message.
+outputs:
+  commitShortSha:
+    description: First 7 characters of GITHUB_SHA
+    value: ${{ steps.emit.outputs.commitShortSha }}
+  commitContextMessage:
+    description: Commit or PR summary (truncated), same as merged into approval message
+    value: ${{ steps.emit.outputs.commitContextMessage }}
+runs:
+  using: composite
+  steps:
+    - id: emit
+      shell: bash
+      run: python3 "${{ github.action_path }}/scripts/emit_commit_context.py"

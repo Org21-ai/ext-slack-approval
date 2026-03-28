@@ -48,5 +48,9 @@ outputs:
     description: slack main message ts
   replyMessageTs:
     description: slack reply message ts
-  
+  commitShortSha:
+    description: Short SHA (7 chars) from GITHUB_SHA; same as Commit field when includeCommitContext is true
+  commitContextMessage:
+    description: Truncated commit or PR summary; same text merged into the approval message when includeCommitContext is true
+
   

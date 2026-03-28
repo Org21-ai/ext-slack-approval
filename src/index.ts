@@ -209,6 +209,9 @@ async function run(): Promise<void> {
       includeCommitContext
     );
 
+    core.setOutput("commitShortSha", shortSha);
+    core.setOutput("commitContextMessage", commitMessage);
+
     const renderReplyTitle = () => {
       return {
         type: "section",

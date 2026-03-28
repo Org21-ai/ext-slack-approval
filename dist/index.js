@@ -57534,6 +57534,8 @@ function run() {
                     ],
                 };
             const mainMessagePayload = mergeCommitContextIntoPayload(baseMainPayload, { shortSha, commitMessage }, includeCommitContext);
+            core.setOutput("commitShortSha", shortSha);
+            core.setOutput("commitContextMessage", commitMessage);
             const renderReplyTitle = () => {
                 return {
                     type: "section",
